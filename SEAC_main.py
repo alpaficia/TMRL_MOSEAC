@@ -1,6 +1,7 @@
 from SEAC import SEACAgent
 from ReplayBuffer import RandomBuffer
-from Image_tool import image_tool as imt
+from Image_tool import image_tool
+from Action_time_buffer import ActionTimeBuffer
 from Adapter import *
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
@@ -53,7 +54,7 @@ parser.add_argument('--adaptive_alpha', type=str2bool, default=True, help='Use a
 parser.add_argument('--energy_per_step', type=float, default=1.0, help='energy to compute one step, in J, if you want '
                                                                        'to change this parameter, you need to change '
                                                                        'the env file also')
-parser.add_argument('--min_time', type=float, default=0.01, help='min time of taking one action, should not be 0')
+parser.add_argument('--min_time', type=float, default=0.02, help='min time of taking one action, should not be 0')
 parser.add_argument('--max_time', type=float, default = 0.1, help='max time of taking one action, should not be unlimited')
 
 parser.add_argument('--alpha_t', type=float, default = 1.0, help='reward parameters for accomplishing the task')
@@ -63,6 +64,8 @@ parser.add_argument('--alpha_tau', type=float, default = 1.0, help='reward param
 opt = parser.parse_args()
 print(opt)
 print(device)
+imt = image_tool()
+atbuffer = ActionTimeBuffer()
 
 
 def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_step, alpha_t, alpha_epsilon, alpha_tau):
@@ -71,6 +74,7 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
     total_energy = 0
     turns = opt.eval_turn
     for j in range(turns):
+        atbuffer.append(0.05)
         current_step_eval = 0
         ep_r = 0
         dead = False
@@ -79,13 +83,15 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
         rpm = obs[1]
         gear = obs[2]
         image = obs[3]  # shape: (1, 64, 64, 3) in rgb
-        history_action = obs[4]  # history action value
+        history_action_0 = obs[4]  # history action value
+        history_action_1 = obs[5]
         edges = imt.edge_detection(image)
         edges_unify = imt.image_unified(edges)
         img_pooling = imt.image_average_pooling(edges_unify)
         img_input = imt.image_reshape_unify(img_pooling)
-        init_time = np.array([0.05])  # init control frequency
-        s = np.concatenate([speed, rpm, gear, img_pooling, init_time, history_action], axis=0)
+        atbuffer.reset()
+        init_time = atbuffer.to_numpy()  # init control frequency
+        s = np.concatenate([speed, rpm, gear, img_input, init_time, history_action_0, history_action_1], axis=0)
         time_epoch = 0
         while not dead:
             current_step_eval += 1
@@ -99,28 +105,28 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
                 act_t_eval = min_time
             act_t_eval = np.array([act_t_eval])
             act = np.concatenate([act_t_eval, act_m_eval], axis=0)
-            env.set_time_step_duration(time_step_duration=act_t_eval)
-            env.set_start_obs_capture(start_obs_capture=act_t_eval)
+            env.set_time_step_duration(time_step_duration=float(act_t_eval))
+            env.set_start_obs_capture(start_obs_capture=float(act_t_eval))
+            atbuffer.append(float(act_t_eval))
             obs, r, terminated, truncated, info = env.step(act_m_eval)
-            reward = reward_adapter(r, alpha_t, energy_per_step, alpha_epsilon, act_t, alpha_tau)
+            reward = reward_adapter(r, alpha_t, energy_per_step, alpha_epsilon, act_t_eval, alpha_tau)
             speed = obs[0]
             rpm = obs[1]
             gear = obs[2]
             image = obs[3]  # shape: (1, 64, 64, 3) in rgb
-            history_action = obs[4]
+            history_action_0 = obs[4]
+            history_action_1 = obs[5]
             edges = imt.edge_detection(image)
             edges_unify = imt.image_unified(edges)
             img_pooling = imt.image_average_pooling(edges_unify)
             img_input = imt.image_reshape_unify(img_pooling)
-            action_time = act_t_eval
-            s_prime = np.concatenate([speed, rpm, gear, img_input, action_time, history_action], axis=0)
+            action_time = atbuffer.to_numpy()
+            s_prime = np.concatenate([speed, rpm, gear, img_input, action_time, history_action_0, history_action_1], axis=0)
             s = s_prime
             time_epoch += act_t_eval
             if terminated or truncated:
                 dead = True
-            ep_r += r
-            if render:
-                env.render()
+            ep_r += reward
         energy = current_step_eval * energy_per_step
         total_energy += energy
         scores += ep_r
@@ -130,10 +136,10 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
 
 def main():
     write = opt.write  # Use SummaryWriter to record the training.
-    env_with_dead = False
+    env_with_dead = True
     env = get_environment()  # load Trackmania env, you need to activate TM23 window
     time.sleep(1.0)  # just so we have time to focus the TM23 window after starting the script
-    state_dim = 71
+    state_dim = 268
     action_dim = 4 
     max_action_m = 1.0
     min_time = opt.min_time
@@ -145,8 +151,8 @@ def main():
     alpha_tau = opt.alpha_tau
 
     # Interaction config:
-    start_steps = 5 * steps_per_epoch  # in steps
-    update_after = 2 * steps_per_epoch  # in steps
+    start_steps = 5000 # in steps
+    update_after = 2000  # in steps
     update_every = opt.update_every
     total_steps = opt.total_steps
     eval_interval = opt.eval_interval  # in steps
@@ -186,59 +192,60 @@ def main():
 
     current_steps = 0
     train_t_history = 0
+    number_of_eval = 1
+    numbers_of_save = 1
     obs, info = env.reset()
     speed = obs[0]
     rpm = obs[1]
     gear = obs[2]
-    image = obs[3]  # shape: (1, 64, 64, 3) in rgb
-    history_action = obs[4]  # history action value
+    image = obs[3]  # shape: (4, 64, 64, 3) in rgb
+    history_action_0 = obs[4]  # history action value
+    history_action_1 = obs[5]  # history action value
     edges = imt.edge_detection(image)
     edges_unify = imt.image_unified(edges)
     img_pooling = imt.image_average_pooling(edges_unify)
     img_input = imt.image_reshape_unify(img_pooling)
-    init_time = np.array([0.05])  # init control frequency
-    s = np.concatenate([speed, rpm, gear, img_pooling, init_time, history_action], axis=0)
+    atbuffer.reset()
+    init_time = atbuffer.to_numpy()
+    s = np.concatenate([speed, rpm, gear, img_input, init_time, history_action_0, history_action_1], axis=0)
     for t in range(total_steps):
         current_steps += 1
+        atbuffer.append(0.05)
         if t < start_steps:
             # Random explore for start_steps, but first 10 step with certainty moving speed
-            act = env.action_space.sample()
-            act_t = act[0]
-            act_m = act[1:]
-            act_t = Act_t_correction(act_t)  # to make sure that the time should be positive
-            act_t = max_time * (act_t / max_action_m)  # fixed the range of time from [-1.0, 1.0] to [-0.1, 0.1]
-            if act_t <= min_time:
-                act_t = min_time  # We don't want the time goes to 0, which makes many troubles
-            act_t = np.array([act_t])
+            act_m = env.action_space.sample()
+            act_t = np.random.uniform(min_time, max_time, 1)
             act = np.concatenate([act_t, act_m], axis=0)
             a_m = Action_adapter_reverse(act_m, max_action_m)
-            a_t = Action_t_relu6_adapter_reverse(act_t, max_action_t)
+            a_t = Action_t_relu6_adapter_reverse(act_t, max_time)
             a = np.concatenate([a_t, a_m], axis=0)
         else:
             a = model.select_action(s, deterministic=False, with_logprob=False)
             a_m = a[1:]
             a_t = a[0]
             act_m = Action_adapter(a_m, max_action_m)
-            act_t = Action_t_relu6_adapter(a_t, max_action_t)
+            act_t = Action_t_relu6_adapter(a_t, max_time)
             if act_t <= min_time:
                 act_t = min_time  # We don't want the time goes to 0, which makes many troubles
             act_t = np.array([act_t])
             act = np.concatenate([act_t, act_m], axis=0)
-        env.set_time_step_duration(time_step_duration=act_t)
-        env.set_start_obs_capture(start_obs_capture=act_t)
+        env.set_time_step_duration(time_step_duration=float(act_t))
+        env.set_start_obs_capture(start_obs_capture=float(act_t))
+        atbuffer.append(float(act_t))
         obs, rew, terminated, truncated, info = env.step(act_m)
         reward = reward_adapter(rew, alpha_t, energy_per_step, alpha_epsilon, act_t, alpha_tau)
         speed = obs[0]
         rpm = obs[1]
         gear = obs[2]
-        image = obs[3]  # shape: (1, 64, 64, 3) in rgb
-        history_action = obs[4]
+        image = obs[3]  # shape: (4, 64, 64, 3) in rgb
+        history_action_0 = obs[4]
+        history_action_1 = obs[5]
         edges = imt.edge_detection(image)
         edges_unify = imt.image_unified(edges)
         img_pooling = imt.image_average_pooling(edges_unify)
         img_input = imt.image_reshape_unify(img_pooling)
-        action_time = act_t
-        s_prime = np.concatenate([speed, rpm, gear, img_input, action_time, history_action], axis=0)
+        action_time = atbuffer.to_numpy()
+        s_prime = np.concatenate([speed, rpm, gear, img_input, action_time, history_action_0, history_action_1], axis=0)
         s_prime_t = torch.tensor(np.float32(s_prime))
         if terminated or truncated:
             dead = True
@@ -251,21 +258,6 @@ def main():
         if (t+1) % 500 == 0:
             print('CurrentPercent:', ((t + 1)*100.0)/total_steps, '%')
 
-        '''save model'''
-        if (t + 1) % save_interval == 0:
-            model.save(t + 1)
-
-        '''record & log'''
-        if (t + 1) % eval_interval == 0:
-            score, average_time, average_energy_cost = evaluate_policy(env, model, max_time, min_time, max_action_m, 
-                                                                       energy_per_step, alpha_t, alpha_epsilon, alpha_tau)
-            if write:
-                writer.add_scalar('ep_r', score, global_step=t + 1)
-                writer.add_scalar('alpha', model.alpha, global_step=t + 1)
-                writer.add_scalar('average_time', average_time, global_step=t + 1)
-                writer.add_scalar('average_energy_cost', average_energy_cost, global_step=t + 1)
-            print('EnvName: TMRL_Trackmania2023', 'TotalSteps:', t + 1, 'score:', score, 'average_time:', average_time,
-                  'average_energy_cost:', average_energy_cost)
         if dead:
             # 50 environment steps company with 50 gradient steps.
             # Stabler than 1 environment step company with 1 gradient step.
@@ -273,19 +265,39 @@ def main():
                 for j in range(update_every):
                     model.train(replay_buffer)
                 train_t_history = t
+            
+            '''record & log'''
+            if t > number_of_eval * eval_interval:
+                score, average_time, average_energy_cost = evaluate_policy(env, model, max_time, min_time, max_action_m, 
+                                                                           energy_per_step, alpha_t, alpha_epsilon, alpha_tau)
+                if write:
+                    writer.add_scalar('ep_r', score, global_step=t + 1)
+                    writer.add_scalar('alpha', model.alpha, global_step=t + 1)
+                    writer.add_scalar('average_time', average_time, global_step=t + 1)
+                    writer.add_scalar('average_energy_cost', average_energy_cost, global_step=t + 1)
+                print('EnvName: TMRL_Trackmania2023', 'TotalSteps:', t + 1, 'score:', score, 'average_time:', average_time,
+                      'average_energy_cost:', average_energy_cost)
+                number_of_eval += 1
+            
+            '''save model'''
+            if t > numbers_of_save * save_interval:
+                model.save(t)
+            
             current_steps = 0
             obs, info = env.reset()
             speed = obs[0]
             rpm = obs[1]
             gear = obs[2]
             image = obs[3]  # shape: (1, 64, 64, 3) in rgb
-            history_action = obs[4]  # history action value
+            history_action_0 = obs[4]  # history action value
+            history_action_1 = obs[5]  # history action value
             edges = imt.edge_detection(image)
             edges_unify = imt.image_unified(edges)
             img_pooling = imt.image_average_pooling(edges_unify)
             img_input = imt.image_reshape_unify(img_pooling)
-            init_time = np.array([0.05])  # init control frequency
-            s = np.concatenate([speed, rpm, gear, img_pooling, init_time, history_action], axis=0)
+            atbuffer.reset()
+            init_time = atbuffer.to_numpy()  # init control frequency
+            s = np.concatenate([speed, rpm, gear, img_input, init_time, history_action_0, history_action_1], axis=0)
 
     writer.close()
     env.close()

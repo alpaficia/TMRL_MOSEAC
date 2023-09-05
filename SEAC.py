@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
-from ReplayBuffer_NEW import device
+from ReplayBuffer import device
 from datetime import datetime
 import os
 
