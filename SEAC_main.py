@@ -156,7 +156,7 @@ def main():
     if write:
         time_now = str(datetime.now())[0:-10]
         time_now = ' ' + time_now[0:13] + '_' + time_now[-2::]
-        write_path = 'runs/SEAC_time{}'.format("dynamicworld-nodelay") + time_now
+        write_path = 'runs/SEAC_time{}'.format("TMRL_Trackmania2023") + time_now
         if os.path.exists(write_path):
             shutil.rmtree(write_path)
         writer = SummaryWriter(log_dir=write_path)
