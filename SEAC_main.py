@@ -51,7 +51,7 @@ parser.add_argument('--alpha', type=float, default=0.12, help='Entropy coefficie
 parser.add_argument('--adaptive_alpha', type=str2bool, default=True, help='Use adaptive_alpha or Not')
 # Set it True to enable the SAC V2
 
-parser.add_argument('--energy_per_step', type=float, default=1.0, help='energy to compute one step, in J, if you want '
+parser.add_argument('--energy_per_step', type=float, default=0.1, help='energy to compute one step, in J, if you want '
                                                                        'to change this parameter, you need to change '
                                                                        'the env file also')
 parser.add_argument('--min_time', type=float, default=0.02, help='min time of taking one action, should not be 0')
