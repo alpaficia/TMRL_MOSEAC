@@ -57,7 +57,7 @@ parser.add_argument('--energy_per_step', type=float, default=1.0, help='energy t
 parser.add_argument('--min_time', type=float, default=0.02, help='min time of taking one action, should not be 0')
 parser.add_argument('--max_time', type=float, default = 0.1, help='max time of taking one action, should not be unlimited')
 
-parser.add_argument('--alpha_t', type=float, default = 1.0, help='reward parameters for accomplishing the task')
+parser.add_argument('--alpha_t', type=float, default = 2.0, help='reward parameters for accomplishing the task')
 parser.add_argument('--alpha_epsilon', type=float, default = 1.0, help='reward parameters for energy cost')
 parser.add_argument('--alpha_tau', type=float, default = 1.0, help='reward parameters for time cost')
 
@@ -105,8 +105,8 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
                 act_t_eval = min_time
             act_t_eval = np.array([act_t_eval])
             act = np.concatenate([act_t_eval, act_m_eval], axis=0)
-            env.set_time_step_duration(time_step_duration=float(act_t_eval))
-            env.set_start_obs_capture(start_obs_capture=float(act_t_eval))
+            env.unwrapped.set_time_step_duration(time_step_duration=float(act_t_eval))
+            env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t_eval))
             atbuffer.append(float(act_t_eval))
             obs, r, terminated, truncated, info = env.step(act_m_eval)
             reward = reward_adapter(r, alpha_t, energy_per_step, alpha_epsilon, act_t_eval, alpha_tau)
@@ -229,8 +229,8 @@ def main():
                 act_t = min_time  # We don't want the time goes to 0, which makes many troubles
             act_t = np.array([act_t])
             act = np.concatenate([act_t, act_m], axis=0)
-        env.set_time_step_duration(time_step_duration=float(act_t))
-        env.set_start_obs_capture(start_obs_capture=float(act_t))
+        env.unwrapped.set_time_step_duration(time_step_duration=float(act_t))
+        env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t))
         atbuffer.append(float(act_t))
         obs, rew, terminated, truncated, info = env.step(act_m)
         reward = reward_adapter(rew, alpha_t, energy_per_step, alpha_epsilon, act_t, alpha_tau)
@@ -265,9 +265,10 @@ def main():
                 for j in range(update_every):
                     model.train(replay_buffer)
                 train_t_history = t
+                print("train times", train_t_history)
             
             '''record & log'''
-            if t > number_of_eval * eval_interval:
+            if t >= number_of_eval * eval_interval:
                 score, average_time, average_energy_cost = evaluate_policy(env, model, max_time, min_time, max_action_m, 
                                                                            energy_per_step, alpha_t, alpha_epsilon, alpha_tau)
                 if write:
@@ -282,6 +283,7 @@ def main():
             '''save model'''
             if t > numbers_of_save * save_interval:
                 model.save(t)
+                print("model has been saved")
             
             current_steps = 0
             obs, info = env.reset()
