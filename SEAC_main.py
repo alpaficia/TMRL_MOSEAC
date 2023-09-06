@@ -261,11 +261,10 @@ def main():
         if dead:
             # 50 environment steps company with 50 gradient steps.
             # Stabler than 1 environment step company with 1 gradient step.
-            if t >= update_after and t - train_t_history >= update_every:
+            if t >= update_after and t >= (train_t_history * update_every) + update_after:
                 for j in range(update_every):
                     model.train(replay_buffer)
-                train_t_history = t
-                print("train times", train_t_history)
+                train_t_history += 1
             
             '''record & log'''
             if t >= number_of_eval * eval_interval:
@@ -281,9 +280,9 @@ def main():
                 number_of_eval += 1
             
             '''save model'''
-            if t > numbers_of_save * save_interval:
+            if t >= numbers_of_save * save_interval:
                 model.save(t)
-                print("model has been saved")
+                numbers_of_save += 1
             
             current_steps = 0
             obs, info = env.reset()
