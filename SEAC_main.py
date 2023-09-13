@@ -57,7 +57,7 @@ parser.add_argument('--energy_per_step', type=float, default=0.1, help='energy t
 parser.add_argument('--min_time', type=float, default=0.02, help='min time of taking one action, should not be 0')
 parser.add_argument('--max_time', type=float, default = 0.1, help='max time of taking one action, should not be unlimited')
 
-parser.add_argument('--alpha_t', type=float, default = 2.0, help='reward parameters for accomplishing the task')
+parser.add_argument('--alpha_t', type=float, default = 10.0, help='reward parameters for accomplishing the task')
 parser.add_argument('--alpha_epsilon', type=float, default = 1.0, help='reward parameters for energy cost')
 parser.add_argument('--alpha_tau', type=float, default = 1.0, help='reward parameters for time cost')
 
@@ -189,7 +189,6 @@ def main():
         model.load(opt.ModelIdex)
 
     replay_buffer = RandomBuffer(state_dim, action_dim, env_with_dead, max_size=int(1e6))
-
     current_steps = 0
     train_t_history = 0
     number_of_eval = 1
