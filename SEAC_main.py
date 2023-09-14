@@ -1,6 +1,6 @@
 from SEAC import SEACAgent
 from ReplayBuffer import RandomBuffer
-from Image_tool import image_tool
+from Image_tool import ImageTool
 from Action_time_buffer import ActionTimeBuffer
 from Adapter import *
 from torch.utils.tensorboard import SummaryWriter
@@ -13,6 +13,8 @@ import os
 import shutil
 import argparse
 import time
+import warnings
+warnings.simplefilter('ignore', np.RankWarning)
 
 os.environ['NUMEXPR_MAX_THREADS'] = '16' 
 # You may changed the Threads based on your PC
@@ -36,7 +38,7 @@ parser.add_argument('--write', type=str2bool, default=True, help='Use SummaryWri
 parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
 parser.add_argument('--ModelIdex', type=int, default=2250000, help='which model to load')
 
-parser.add_argument('--total_steps', type=int, default=int(5e6), help='Max training steps')
+parser.add_argument('--total_steps', type=int, default=int(3e6), help='Max training steps')
 parser.add_argument('--save_interval', type=int, default=int(1e4), help='Model saving interval, in steps.')
 parser.add_argument('--eval_interval', type=int, default=int(1e3), help='Model evaluating interval, in steps.')
 parser.add_argument('--eval_turn', type=int, default=3, help='Model evaluating times, in episode.')
@@ -57,14 +59,14 @@ parser.add_argument('--energy_per_step', type=float, default=0.1, help='energy t
 parser.add_argument('--min_time', type=float, default=0.02, help='min time of taking one action, should not be 0')
 parser.add_argument('--max_time', type=float, default = 0.1, help='max time of taking one action, should not be unlimited')
 
-parser.add_argument('--alpha_t', type=float, default = 10.0, help='reward parameters for accomplishing the task')
+parser.add_argument('--alpha_t', type=float, default = 20.0, help='reward parameters for accomplishing the task')
 parser.add_argument('--alpha_epsilon', type=float, default = 1.0, help='reward parameters for energy cost')
 parser.add_argument('--alpha_tau', type=float, default = 1.0, help='reward parameters for time cost')
 
 opt = parser.parse_args()
 print(opt)
 print(device)
-imt = image_tool()
+imt = ImageTool()
 atbuffer = ActionTimeBuffer()
 
 
@@ -139,7 +141,7 @@ def main():
     env_with_dead = True
     env = get_environment()  # load Trackmania env, you need to activate TM23 window
     time.sleep(1.0)  # just so we have time to focus the TM23 window after starting the script
-    state_dim = 268
+    state_dim = 1036
     action_dim = 4 
     max_action_m = 1.0
     min_time = opt.min_time
