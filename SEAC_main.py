@@ -1,6 +1,5 @@
 from SEAC import SEACAgent
 from ReplayBuffer import RandomBuffer
-from Image_tool import ImageTool
 from Action_time_buffer import ActionTimeBuffer
 from Adapter import *
 from torch.utils.tensorboard import SummaryWriter
@@ -66,7 +65,6 @@ parser.add_argument('--alpha_tau', type=float, default = 1.0, help='reward param
 opt = parser.parse_args()
 print(opt)
 print(device)
-imt = ImageTool()
 atbuffer = ActionTimeBuffer()
 
 
@@ -87,18 +85,14 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
         image = obs[3]  # shape: (1, 64, 64, 3) in rgb
         history_action_0 = obs[4]  # history action value
         history_action_1 = obs[5]
-        edges = imt.edge_detection(image)
-        edges_unify = imt.image_unified(edges)
-        img_pooling = imt.image_average_pooling(edges_unify)
-        img_input = imt.image_reshape_unify(img_pooling)
         atbuffer.reset()
         init_time = atbuffer.to_numpy()  # init control frequency
-        s = np.concatenate([speed, rpm, gear, img_input, init_time, history_action_0, history_action_1], axis=0)
+        s = np.concatenate([speed, rpm, gear, init_time, history_action_0, history_action_1], axis=0)
         time_epoch = 0
         while not dead:
             current_step_eval += 1
             # Take deterministic actions at test time
-            a = model.select_action(s, deterministic=True, with_logprob=False)
+            a = model.select_action(s, image, deterministic=True, with_logprob=False)
             a_t_eval = a[0]
             a_m_eval = a[1:]
             act_m_eval = Action_adapter(a_m_eval, max_action_m)
@@ -106,7 +100,6 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
             if act_t_eval <= min_time:
                 act_t_eval = min_time
             act_t_eval = np.array([act_t_eval])
-            act = np.concatenate([act_t_eval, act_m_eval], axis=0)
             env.unwrapped.set_time_step_duration(time_step_duration=float(act_t_eval))
             env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t_eval))
             atbuffer.append(float(act_t_eval))
@@ -115,16 +108,13 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
             speed = obs[0]
             rpm = obs[1]
             gear = obs[2]
-            image = obs[3]  # shape: (1, 64, 64, 3) in rgb
+            image_prime = obs[3]  # shape: (1, 64, 64) in gray
             history_action_0 = obs[4]
             history_action_1 = obs[5]
-            edges = imt.edge_detection(image)
-            edges_unify = imt.image_unified(edges)
-            img_pooling = imt.image_average_pooling(edges_unify)
-            img_input = imt.image_reshape_unify(img_pooling)
             action_time = atbuffer.to_numpy()
-            s_prime = np.concatenate([speed, rpm, gear, img_input, action_time, history_action_0, history_action_1], axis=0)
+            s_prime = np.concatenate([speed, rpm, gear, action_time, history_action_0, history_action_1], axis=0)
             s = s_prime
+            image = image_prime
             time_epoch += act_t_eval
             if terminated or truncated:
                 dead = True
@@ -141,8 +131,9 @@ def main():
     env_with_dead = True
     env = get_environment()  # load Trackmania env, you need to activate TM23 window
     time.sleep(1.0)  # just so we have time to focus the TM23 window after starting the script
-    state_dim = 1036
+    state_dim = 12
     action_dim = 4 
+    img_shape = (64, 64)
     max_action_m = 1.0
     min_time = opt.min_time
     max_time = opt.max_time
@@ -175,6 +166,7 @@ def main():
     kwargs = {
         "state_dim": state_dim,
         "action_dim": action_dim,
+        "image_shape": img_shape,
         "gamma": opt.gamma,
         "hid_shape": (opt.net_width, opt.net_width),
         "a_lr": opt.a_lr,
@@ -190,7 +182,7 @@ def main():
     if opt.Loadmodel:
         model.load(opt.ModelIdex)
 
-    replay_buffer = RandomBuffer(state_dim, action_dim, env_with_dead, max_size=int(1e6))
+    replay_buffer = RandomBuffer(state_dim, action_dim, env_with_dead, max_size=int(1e5))
     current_steps = 0
     train_t_history = 0
     number_of_eval = 1
@@ -199,16 +191,12 @@ def main():
     speed = obs[0]
     rpm = obs[1]
     gear = obs[2]
-    image = obs[3]  # shape: (4, 64, 64, 3) in rgb
+    image = obs[3]  # shape: (4, 64, 64) in gray image.
     history_action_0 = obs[4]  # history action value
     history_action_1 = obs[5]  # history action value
-    edges = imt.edge_detection(image)
-    edges_unify = imt.image_unified(edges)
-    img_pooling = imt.image_average_pooling(edges_unify)
-    img_input = imt.image_reshape_unify(img_pooling)
     atbuffer.reset()
     init_time = atbuffer.to_numpy()
-    s = np.concatenate([speed, rpm, gear, img_input, init_time, history_action_0, history_action_1], axis=0)
+    s = np.concatenate([speed, rpm, gear, init_time, history_action_0, history_action_1], axis=0)
     for t in range(total_steps):
         current_steps += 1
         atbuffer.append(0.05)
@@ -216,12 +204,11 @@ def main():
             # Random explore for start_steps, but first 10 step with certainty moving speed
             act_m = env.action_space.sample()
             act_t = np.random.uniform(min_time, max_time, 1)
-            act = np.concatenate([act_t, act_m], axis=0)
             a_m = Action_adapter_reverse(act_m, max_action_m)
             a_t = Action_t_relu6_adapter_reverse(act_t, max_time)
             a = np.concatenate([a_t, a_m], axis=0)
         else:
-            a = model.select_action(s, deterministic=False, with_logprob=False)
+            a = model.select_action(s, image, deterministic=False, with_logprob=False)
             a_m = a[1:]
             a_t = a[0]
             act_m = Action_adapter(a_m, max_action_m)
@@ -229,7 +216,6 @@ def main():
             if act_t <= min_time:
                 act_t = min_time  # We don't want the time goes to 0, which makes many troubles
             act_t = np.array([act_t])
-            act = np.concatenate([act_t, act_m], axis=0)
         env.unwrapped.set_time_step_duration(time_step_duration=float(act_t))
         env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t))
         atbuffer.append(float(act_t))
@@ -238,15 +224,11 @@ def main():
         speed = obs[0]
         rpm = obs[1]
         gear = obs[2]
-        image = obs[3]  # shape: (4, 64, 64, 3) in rgb
+        image_prime = obs[3]  # shape: (4, 64, 64, 3) in rgb
         history_action_0 = obs[4]
         history_action_1 = obs[5]
-        edges = imt.edge_detection(image)
-        edges_unify = imt.image_unified(edges)
-        img_pooling = imt.image_average_pooling(edges_unify)
-        img_input = imt.image_reshape_unify(img_pooling)
         action_time = atbuffer.to_numpy()
-        s_prime = np.concatenate([speed, rpm, gear, img_input, action_time, history_action_0, history_action_1], axis=0)
+        s_prime = np.concatenate([speed, rpm, gear, action_time, history_action_0, history_action_1], axis=0)
         s_prime_t = torch.tensor(np.float32(s_prime))
         if terminated or truncated:
             dead = True
@@ -254,9 +236,12 @@ def main():
             dead = False
         s_t = torch.tensor(np.float32(s))
         a_t = torch.tensor(a)
-        replay_buffer.add(s_t, a_t, reward, s_prime_t, dead)
+        image_t = torch.tensor(image)
+        image_prime_t = torch.tensor(image_prime)
+        replay_buffer.add(s_t, image_t, a_t, reward, s_prime_t, image_prime_t, dead)
         s = s_prime
-        if (t+1) % 500 == 0:
+        image = image_prime
+        if (t+1) % 5000 == 0:
             print('CurrentPercent:', ((t + 1)*100.0)/total_steps, '%')
 
         if dead:
@@ -293,13 +278,9 @@ def main():
             image = obs[3]  # shape: (1, 64, 64, 3) in rgb
             history_action_0 = obs[4]  # history action value
             history_action_1 = obs[5]  # history action value
-            edges = imt.edge_detection(image)
-            edges_unify = imt.image_unified(edges)
-            img_pooling = imt.image_average_pooling(edges_unify)
-            img_input = imt.image_reshape_unify(img_pooling)
             atbuffer.reset()
             init_time = atbuffer.to_numpy()  # init control frequency
-            s = np.concatenate([speed, rpm, gear, img_input, init_time, history_action_0, history_action_1], axis=0)
+            s = np.concatenate([speed, rpm, gear, init_time, history_action_0, history_action_1], axis=0)
 
     writer.close()
     env.close()

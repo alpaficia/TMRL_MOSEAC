@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
+from math import floor
 from ReplayBuffer import device
-from datetime import datetime
 import os
 
 save_path = '/model/'
@@ -26,12 +26,37 @@ def build_net(layer_shape, activation, output_activation):
         layers += [nn.Linear(layer_shape[j], layer_shape[j + 1]), act()]
     return nn.Sequential(*layers)
 
+def num_flat_features(x):
+    size = x.size()[1:]
+    num_features = 1
+    for s in size:
+        num_features *= s
+    return num_features
 
-class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, hid_shape, h_acti=nn.ReLU, o_acti=nn.ReLU):
-        super(Actor, self).__init__()
-        layers = [state_dim] + list(hid_shape)
+
+def conv2d_out_dims(conv_layer, h_in, w_in):
+    h_out = floor((h_in + 2 * conv_layer.padding[0] - conv_layer.dilation[0] * (conv_layer.kernel_size[0] - 1) - 1) / conv_layer.stride[0] + 1)
+    w_out = floor((w_in + 2 * conv_layer.padding[1] - conv_layer.dilation[1] * (conv_layer.kernel_size[1] - 1) - 1) / conv_layer.stride[1] + 1)
+    return h_out, w_out
+
+
+class VanillaCNN_Actor(nn.Module):
+    def __init__(self, state_dim_without_imgs, img_shape, action_dim, hid_shape, h_acti=nn.ReLU, o_acti=nn.ReLU):
+        super(VanillaCNN_Actor, self).__init__()
         self.action_dim = action_dim
+        self.h_out, self.w_out = img_shape[0], img_shape[1]
+        self.len_of_history_images = 4
+        self.conv1 = nn.Conv2d(self.len_of_history_images, 64, 8, stride=2)
+        self.h_out, self.w_out = conv2d_out_dims(self.conv1, self.h_out, self.w_out)
+        self.conv2 = nn.Conv2d(64, 64, 4, stride=2)
+        self.h_out, self.w_out = conv2d_out_dims(self.conv2, self.h_out, self.w_out)
+        self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
+        self.h_out, self.w_out = conv2d_out_dims(self.conv3, self.h_out, self.w_out)
+        self.conv4 = nn.Conv2d(128, 128, 4, stride=2)
+        self.h_out, self.w_out = conv2d_out_dims(self.conv4, self.h_out, self.w_out)
+        self.out_channels = self.conv4.out_channels
+        self.flat_features = self.out_channels * self.h_out * self.w_out
+        layers = [state_dim_without_imgs + self.flat_features] + list(hid_shape)
         self.a_net = build_net(layers, h_acti, o_acti)
         self.mu_layer = nn.Linear(layers[-1], action_dim)
         self.log_std_layer = nn.Linear(layers[-1], action_dim)
@@ -39,9 +64,16 @@ class Actor(nn.Module):
         self.LOG_STD_MAX = 2
         self.LOG_STD_MIN = -20
 
-    def forward(self, state, deterministic=False, with_logprob=True):
+    def forward(self, state, imgs, deterministic=False, with_logprob=True):
         # Network with Enforcing Action Bounds
-        net_out = self.a_net(state)
+        x = F.relu(self.conv1(imgs))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = x.squeeze(-1)
+        x = x.squeeze(-1)
+        x = torch.cat((state, x), -1)
+        net_out = self.a_net(x)
         mu = self.mu_layer(net_out)
         log_std = self.log_std_layer(net_out)
         log_std = torch.clamp(log_std, self.LOG_STD_MIN, self.LOG_STD_MAX)
@@ -66,15 +98,34 @@ class Actor(nn.Module):
         return a, logp_pi_a
 
 
-class QCritic(nn.Module):
-    def __init__(self, state_dim, action_dim, hid_shape):
-        super(QCritic, self).__init__()
-        layers = [state_dim + action_dim] + list(hid_shape) + [1]
+class VanillaCNN_QCritic(nn.Module):
+    def __init__(self, state_dim_without_imgs, img_shape, action_dim, hid_shape):
+        super(VanillaCNN_QCritic, self).__init__()
+        self.action_dim = action_dim
+        self.h_out, self.w_out = img_shape[0], img_shape[1]
+        self.len_of_history_images = 4
+        self.conv1 = nn.Conv2d(self.len_of_history_images, 64, 8, stride=2)
+        self.h_out, self.w_out = conv2d_out_dims(self.conv1, self.h_out, self.w_out)
+        self.conv2 = nn.Conv2d(64, 64, 4, stride=2)
+        self.h_out, self.w_out = conv2d_out_dims(self.conv2, self.h_out, self.w_out)
+        self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
+        self.h_out, self.w_out = conv2d_out_dims(self.conv3, self.h_out, self.w_out)
+        self.conv4 = nn.Conv2d(128, 128, 4, stride=2)
+        self.h_out, self.w_out = conv2d_out_dims(self.conv4, self.h_out, self.w_out)
+        self.out_channels = self.conv4.out_channels
+        self.flat_features = self.out_channels * self.h_out * self.w_out
+        layers = [state_dim_without_imgs + self.flat_features + action_dim] + list(hid_shape) + [1]
         self.Q_1 = build_net(layers, nn.ReLU, nn.Identity)
         self.Q_2 = build_net(layers, nn.ReLU, nn.Identity)
 
-    def forward(self, state, action):
-        sa = torch.cat([state, action], 1)
+    def forward(self, state, imgs, action):
+        x = F.relu(self.conv1(imgs))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = x.squeeze(-1)
+        x = x.squeeze(-1)
+        sa = torch.cat((state, x, action), -1)
         q1 = self.Q_1(sa)
         q2 = self.Q_2(sa)
         return q1, q2
@@ -85,6 +136,7 @@ class SEACAgent(object):
             self,
             state_dim,
             action_dim,
+            image_shape,
             gamma=0.99,
             hid_shape=(256, 256),
             a_lr=3e-4,
@@ -93,9 +145,10 @@ class SEACAgent(object):
             alpha=0.2,
             adaptive_alpha=True
     ):
-        self.actor = Actor(state_dim, action_dim, hid_shape).to(device)
+        self.image_shape = (64, 64)
+        self.actor = VanillaCNN_Actor(state_dim, self.image_shape, action_dim, hid_shape).to(device)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=a_lr)
-        self.q_critic = QCritic(state_dim, action_dim, hid_shape).to(device)
+        self.q_critic = VanillaCNN_QCritic(state_dim, self.image_shape, action_dim, hid_shape).to(device)
         self.q_critic_optimizer = torch.optim.Adam(self.q_critic.parameters(), lr=c_lr)
         self.q_critic_target = copy.deepcopy(self.q_critic)
         # Freeze target networks with respect to optimizers (only update via polyak averaging)
@@ -123,18 +176,18 @@ class SEACAgent(object):
         return a.cpu().numpy().flatten()
 
     def train(self, replay_buffer):
-        s, a, r, s_prime, dead_mask = replay_buffer.sample(self.batch_size)
+        s, imgs, a, r, s_prime, imgs_prime, dead_mask = replay_buffer.sample(self.batch_size)
 
         # Update Q Net
         with torch.no_grad():
-            a_prime, log_pi_a_prime = self.actor(s_prime)
-            target_q1, target_q2 = self.q_critic_target(s_prime, a_prime)
+            a_prime, log_pi_a_prime = self.actor(s_prime, imgs_prime)
+            target_q1, target_q2 = self.q_critic_target(s_prime, imgs_prime, a_prime)
             target_q = torch.min(target_q1, target_q2)
             target_q = r + (1 - dead_mask) * self.gamma * (
                     target_q - self.alpha * log_pi_a_prime)  # Dead or Done is tackled by Randombuffer
 
         # Get current Q estimates
-        current_q1, current_q2 = self.q_critic(s, a)
+        current_q1, current_q2 = self.q_critic(s, imgs, a)
         q_loss = F.mse_loss(current_q1, target_q) + F.mse_loss(current_q2, target_q)
         self.q_critic_optimizer.zero_grad()
         q_loss.backward()
@@ -146,8 +199,8 @@ class SEACAgent(object):
         for params in self.q_critic.parameters():
             params.requires_grad = False
 
-        a, log_pi_a = self.actor(s)
-        current_q1, current_q2 = self.q_critic(s, a)
+        a, log_pi_a = self.actor(s, imgs)
+        current_q1, current_q2 = self.q_critic(s, imgs, a)
         q = torch.min(current_q1, current_q2)
         a_loss = (self.alpha * log_pi_a - q).mean()
         self.actor_optimizer.zero_grad()
