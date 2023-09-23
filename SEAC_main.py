@@ -39,7 +39,7 @@ parser.add_argument('--ModelIdex', type=int, default=2250000, help='which model 
 
 parser.add_argument('--total_steps', type=int, default=int(3e6), help='Max training steps')
 parser.add_argument('--save_interval', type=int, default=int(1e4), help='Model saving interval, in steps.')
-parser.add_argument('--eval_interval', type=int, default=int(1e3), help='Model evaluating interval, in steps.')
+parser.add_argument('--eval_interval', type=int, default=int(3e3), help='Model evaluating interval, in steps.')
 parser.add_argument('--eval_turn', type=int, default=3, help='Model evaluating times, in episode.')
 parser.add_argument('--update_every', type=int, default=50, help='Training Frequency, in steps')
 parser.add_argument('--gamma', type=float, default=0.99, help='Discounted Factor')

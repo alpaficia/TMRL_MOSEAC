@@ -151,6 +151,7 @@ class SEACAgent(object):
         self.q_critic = VanillaCNN_QCritic(state_dim, self.image_shape, action_dim, hid_shape).to(device)
         self.q_critic_optimizer = torch.optim.Adam(self.q_critic.parameters(), lr=c_lr)
         self.q_critic_target = copy.deepcopy(self.q_critic)
+        self.len_of_history_images = 4
         # Freeze target networks with respect to optimizers (only update via polyak averaging)
         for p in self.q_critic_target.parameters():
             p.requires_grad = False
@@ -169,10 +170,11 @@ class SEACAgent(object):
             self.log_alpha = torch.tensor(np.log(alpha), dtype=torch.float32, requires_grad=True, device=device)
             self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=c_lr)
 
-    def select_action(self, state, deterministic, with_logprob=False):
+    def select_action(self, state, image, deterministic, with_logprob=False):
         with torch.no_grad():
             state = torch.FloatTensor(state.reshape(1, -1)).to(device)
-            a, _ = self.actor(state, deterministic, with_logprob)
+            image = torch.FloatTensor(image.reshape([1, self.len_of_history_images, self.image_shape[0], self.image_shape[1]])).to(device)
+            a, _ = self.actor(state, image, deterministic, with_logprob)
         return a.cpu().numpy().flatten()
 
     def train(self, replay_buffer):
