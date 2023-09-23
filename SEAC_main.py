@@ -39,15 +39,15 @@ parser.add_argument('--ModelIdex', type=int, default=2250000, help='which model 
 
 parser.add_argument('--total_steps', type=int, default=int(3e6), help='Max training steps')
 parser.add_argument('--save_interval', type=int, default=int(1e4), help='Model saving interval, in steps.')
-parser.add_argument('--eval_interval', type=int, default=int(3e3), help='Model evaluating interval, in steps.')
+parser.add_argument('--eval_interval', type=int, default=int(3e4), help='Model evaluating interval, in steps.')
 parser.add_argument('--eval_turn', type=int, default=3, help='Model evaluating times, in episode.')
 parser.add_argument('--update_every', type=int, default=50, help='Training Frequency, in steps')
 parser.add_argument('--gamma', type=float, default=0.99, help='Discounted Factor')
 parser.add_argument('--net_width', type=int, default=256, help='Hidden net width')
 parser.add_argument('--a_lr', type=float, default=3e-5, help='Learning rate of actor')
-parser.add_argument('--c_lr', type=float, default=3e-5, help='Learning rate of critic')
+parser.add_argument('--c_lr', type=float, default=3e-4, help='Learning rate of critic')
 
-parser.add_argument('--batch_size', type=int, default=256, help='Batch Size')
+parser.add_argument('--batch_size', type=int, default=1024, help='Batch Size')
 parser.add_argument('--alpha', type=float, default=0.12, help='Entropy coefficient')
 parser.add_argument('--adaptive_alpha', type=str2bool, default=True, help='Use adaptive_alpha or Not')
 # Set it True to enable the SAC V2
@@ -58,9 +58,9 @@ parser.add_argument('--energy_per_step', type=float, default=0.1, help='energy t
 parser.add_argument('--min_time', type=float, default=0.02, help='min time of taking one action, should not be 0')
 parser.add_argument('--max_time', type=float, default = 0.1, help='max time of taking one action, should not be unlimited')
 
-parser.add_argument('--alpha_t', type=float, default = 20.0, help='reward parameters for accomplishing the task')
-parser.add_argument('--alpha_epsilon', type=float, default = 1.0, help='reward parameters for energy cost')
-parser.add_argument('--alpha_tau', type=float, default = 1.0, help='reward parameters for time cost')
+parser.add_argument('--alpha_t', type=float, default = 1.0, help='reward parameters for accomplishing the task')
+parser.add_argument('--alpha_epsilon', type=float, default = 0.03, help='reward parameters for energy cost')
+parser.add_argument('--alpha_tau', type=float, default = 0.03, help='reward parameters for time cost')
 
 opt = parser.parse_args()
 print(opt)
