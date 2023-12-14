@@ -38,29 +38,29 @@ parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pret
 parser.add_argument('--ModelIdex', type=int, default=2250000, help='which model to load')
 
 parser.add_argument('--total_steps', type=int, default=int(3e6), help='Max training steps')
-parser.add_argument('--save_interval', type=int, default=int(1e4), help='Model saving interval, in steps.')
+parser.add_argument('--save_interval', type=int, default=int(1e5), help='Model saving interval, in steps.')
 parser.add_argument('--eval_interval', type=int, default=int(3e4), help='Model evaluating interval, in steps.')
 parser.add_argument('--eval_turn', type=int, default=3, help='Model evaluating times, in episode.')
-parser.add_argument('--update_every', type=int, default=50, help='Training Frequency, in steps')
-parser.add_argument('--gamma', type=float, default=0.99, help='Discounted Factor')
+parser.add_argument('--update_every', type=int, default=20, help='Training Frequency, in steps')
+parser.add_argument('--gamma', type=float, default=0.995, help='Discounted Factor')
 parser.add_argument('--net_width', type=int, default=256, help='Hidden net width')
-parser.add_argument('--a_lr', type=float, default=3e-5, help='Learning rate of actor')
-parser.add_argument('--c_lr', type=float, default=3e-4, help='Learning rate of critic')
+parser.add_argument('--a_lr', type=float, default=1e-5, help='Learning rate of actor')
+parser.add_argument('--c_lr', type=float, default=5e-5, help='Learning rate of critic')
 
-parser.add_argument('--batch_size', type=int, default=1024, help='Batch Size')
-parser.add_argument('--alpha', type=float, default=0.12, help='Entropy coefficient')
-parser.add_argument('--adaptive_alpha', type=str2bool, default=True, help='Use adaptive_alpha or Not')
+parser.add_argument('--batch_size', type=int, default=256, help='Batch Size')
+parser.add_argument('--alpha', type=float, default=0.01, help='Entropy coefficient')
+parser.add_argument('--adaptive_alpha', type=str2bool, default=False, help='Use adaptive_alpha or Not')
 # Set it True to enable the SAC V2
 
-parser.add_argument('--energy_per_step', type=float, default=0.1, help='energy to compute one step, in J, if you want '
+parser.add_argument('--energy_per_step', type=float, default=1.0, help='energy to compute one step, in J, if you want '
                                                                        'to change this parameter, you need to change '
                                                                        'the env file also')
-parser.add_argument('--min_time', type=float, default=0.02, help='min time of taking one action, should not be 0')
-parser.add_argument('--max_time', type=float, default = 0.1, help='max time of taking one action, should not be unlimited')
+parser.add_argument('--min_time', type=float, default=(1.0/30.0), help='min time of taking one action, should not be 0')
+parser.add_argument('--max_time', type=float, default=(1.0/1.0), help='max time of taking one action, should not be unlimited')
 
-parser.add_argument('--alpha_t', type=float, default = 1.0, help='reward parameters for accomplishing the task')
-parser.add_argument('--alpha_epsilon', type=float, default = 0.03, help='reward parameters for energy cost')
-parser.add_argument('--alpha_tau', type=float, default = 0.03, help='reward parameters for time cost')
+parser.add_argument('--alpha_t', type=float, default=1.2, help='reward parameters for accomplishing the task')
+parser.add_argument('--alpha_epsilon', type=float, default=0.001, help='reward parameters for energy cost')
+parser.add_argument('--alpha_tau', type=float, default=0.01, help='reward parameters for time cost')
 
 opt = parser.parse_args()
 print(opt)
@@ -101,7 +101,7 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
                 act_t_eval = min_time
             act_t_eval = np.array([act_t_eval])
             env.unwrapped.set_time_step_duration(time_step_duration=float(act_t_eval))
-            env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t_eval))
+            env.unwrapped.set_start_obs_capture(start_obs_capture=float(0.8 * act_t_eval))
             atbuffer.append(float(act_t_eval))
             obs, r, terminated, truncated, info = env.step(act_m_eval)
             reward = reward_adapter(r, alpha_t, energy_per_step, alpha_epsilon, act_t_eval, alpha_tau)
@@ -144,7 +144,7 @@ def main():
     alpha_tau = opt.alpha_tau
 
     # Interaction config:
-    start_steps = 5000 # in steps
+    start_steps = 5000  # in steps
     update_after = 2000  # in steps
     update_every = opt.update_every
     total_steps = opt.total_steps
@@ -217,7 +217,7 @@ def main():
                 act_t = min_time  # We don't want the time goes to 0, which makes many troubles
             act_t = np.array([act_t])
         env.unwrapped.set_time_step_duration(time_step_duration=float(act_t))
-        env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t))
+        env.unwrapped.set_start_obs_capture(start_obs_capture=float(0.8 * act_t))
         atbuffer.append(float(act_t))
         obs, rew, terminated, truncated, info = env.step(act_m)
         reward = reward_adapter(rew, alpha_t, energy_per_step, alpha_epsilon, act_t, alpha_tau)
