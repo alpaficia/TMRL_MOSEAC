@@ -143,7 +143,7 @@ The Trackmania game also provides the lidar data, if you would like to do more, 
 
 ## Results
 
-We compared our elastic method V.S. fixed rate method (20 Hz) baseline.
+We compared our elastic method VS. fixed rate method (20 Hz) baseline.
 
 The chart of consumption of steps is here:
 
