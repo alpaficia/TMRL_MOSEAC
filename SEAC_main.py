@@ -37,15 +37,15 @@ parser.add_argument('--write', type=str2bool, default=True, help='Use SummaryWri
 parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
 parser.add_argument('--ModelIdex', type=int, default=2250000, help='which model to load')
 
-parser.add_argument('--total_steps', type=int, default=int(3e6), help='Max training steps')
+parser.add_argument('--total_steps', type=int, default=int(5e6), help='Max training steps')
 parser.add_argument('--save_interval', type=int, default=int(5e4), help='Model saving interval, in steps.')
 parser.add_argument('--eval_interval', type=int, default=int(5e4), help='Model evaluating interval, in steps.')
 parser.add_argument('--eval_turn', type=int, default=3, help='Model evaluating times, in episode.')
 parser.add_argument('--update_every', type=int, default=20, help='Training Frequency, in steps')
 parser.add_argument('--gamma', type=float, default=0.995, help='Discounted Factor')
 parser.add_argument('--net_width', type=int, default=256, help='Hidden net width')
-parser.add_argument('--a_lr', type=float, default=3e-5, help='Learning rate of actor')
-parser.add_argument('--c_lr', type=float, default=5e-5, help='Learning rate of critic')
+parser.add_argument('--a_lr', type=float, default=1e-5, help='Learning rate of actor')
+parser.add_argument('--c_lr', type=float, default=2e-5, help='Learning rate of critic')
 
 parser.add_argument('--batch_size', type=int, default=256, help='Batch Size')
 parser.add_argument('--alpha', type=float, default=0.01, help='Entropy coefficient')
@@ -58,7 +58,7 @@ parser.add_argument('--energy_per_step', type=float, default=1.0, help='energy t
 parser.add_argument('--min_time', type=float, default=(1.0/30.0), help='min time of taking one action, should not be 0')
 parser.add_argument('--max_time', type=float, default=(1.0/5.0), help='max time of taking one action, should not be unlimited')
 
-parser.add_argument('--alpha_t', type=float, default=1.2, help='reward parameters for accomplishing the task')
+parser.add_argument('--alpha_t', type=float, default=3.0, help='reward parameters for accomplishing the task')
 parser.add_argument('--alpha_epsilon', type=float, default=0.001, help='reward parameters for energy cost')
 parser.add_argument('--alpha_tau', type=float, default=0.01, help='reward parameters for time cost')
 
@@ -87,6 +87,8 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
         history_action_1 = obs[5]
         atbuffer.reset()
         init_time = atbuffer.to_numpy()  # init control frequency
+        history_action_0 = np.insert(history_action_0, 0, init_time[-2])
+        history_action_1 = np.insert(history_action_1, 0, init_time[-1])
         s = np.concatenate([speed, rpm, gear, init_time, history_action_0, history_action_1], axis=0)
         time_epoch = 0
         while not dead:
@@ -112,6 +114,8 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
             history_action_0 = obs[4]
             history_action_1 = obs[5]
             action_time = atbuffer.to_numpy()
+            history_action_0 = np.insert(history_action_0, 0, action_time[-2])
+            history_action_1 = np.insert(history_action_1, 0, action_time[-1])
             s_prime = np.concatenate([speed, rpm, gear, action_time, history_action_0, history_action_1], axis=0)
             s = s_prime
             image = image_prime
@@ -131,7 +135,7 @@ def main():
     env_with_dead = True
     env = get_environment()  # load Trackmania env, you need to activate TM23 window
     time.sleep(1.0)  # just so we have time to focus the TM23 window after starting the script
-    state_dim = 12
+    state_dim = 14
     action_dim = 4 
     img_shape = (64, 64)
     max_action_m = 1.0
@@ -196,6 +200,8 @@ def main():
     history_action_1 = obs[5]  # history action value
     atbuffer.reset()
     init_time = atbuffer.to_numpy()
+    history_action_0 = np.insert(history_action_0, 0, init_time[-2])
+    history_action_1 = np.insert(history_action_1, 0, init_time[-1])
     s = np.concatenate([speed, rpm, gear, init_time, history_action_0, history_action_1], axis=0)
     for t in range(total_steps):
         current_steps += 1
@@ -228,6 +234,8 @@ def main():
         history_action_0 = obs[4]
         history_action_1 = obs[5]
         action_time = atbuffer.to_numpy()
+        history_action_0 = np.insert(history_action_0, 0, action_time[-2])
+        history_action_1 = np.insert(history_action_1, 0, action_time[-1])
         s_prime = np.concatenate([speed, rpm, gear, action_time, history_action_0, history_action_1], axis=0)
         s_prime_t = torch.tensor(np.float32(s_prime))
         if terminated or truncated:
@@ -280,6 +288,8 @@ def main():
             history_action_1 = obs[5]  # history action value
             atbuffer.reset()
             init_time = atbuffer.to_numpy()  # init control frequency
+            history_action_0 = np.insert(history_action_0, 0, init_time[-2])
+            history_action_1 = np.insert(history_action_1, 0, init_time[-1])
             s = np.concatenate([speed, rpm, gear, init_time, history_action_0, history_action_1], axis=0)
 
     writer.close()
