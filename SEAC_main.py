@@ -103,7 +103,7 @@ def evaluate_policy(env, model, max_time, min_time, max_action_m, energy_per_ste
                 act_t_eval = min_time
             act_t_eval = np.array([act_t_eval])
             env.unwrapped.set_time_step_duration(time_step_duration=float(act_t_eval))
-            env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t_eval-0.01))
+            env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t_eval))
             atbuffer.append(float(act_t_eval))
             obs, r, terminated, truncated, info = env.step(act_m_eval)
             reward = reward_adapter(r, alpha_t, energy_per_step, alpha_epsilon, act_t_eval, alpha_tau)
@@ -223,7 +223,7 @@ def main():
                 act_t = min_time  # We don't want the time goes to 0, which makes many troubles
             act_t = np.array([act_t])
         env.unwrapped.set_time_step_duration(time_step_duration=float(act_t))
-        env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t-0.01))
+        env.unwrapped.set_start_obs_capture(start_obs_capture=float(act_t))
         atbuffer.append(float(act_t))
         obs, rew, terminated, truncated, info = env.step(act_m)
         reward = reward_adapter(rew, alpha_t, energy_per_step, alpha_epsilon, act_t, alpha_tau)
