@@ -1,10 +1,8 @@
-# TMRL_SEAC
+# TMRL_MOSEAC
 This project is for applying the idea of elastic time step with reinforcement learning under 
 [tmrl](https://github.com/trackmania-rl/tmrl) framework.
 
 This repo is for the paper [Reinforcement Learning with Elastic Time Step](https://arxiv.org/abs/2402.14961). About the 
-details for state and related action settings, please refer to our paper or see the related 
-[repo](https://github.com/alpaficia/SEAC_MAZE).
 
 The tmrl framework can establish a communication link between game 
 [Trackmania](https://www.trackmania.com/?rub=home&lang=en) to your local machine though 
@@ -14,16 +12,16 @@ The tmrl framework can establish a communication link between game
 
 The tmrl framework is a powerful Multi-threaded data transfer framework, allowing users to 
 train multi-threaded. However, Trackmania is not supposed to run multi-threaded. In other 
-words, one machine can only launch one game in the same time.
+words, one machine can only launch one game at the same time.
 
-Therefore, our code is about to use for a single thread training on a Windows machine.
+Therefore, our code will be used for single-thread training on a Windows machine.
 
 
 ## Prerequisites
 - Windows 10 / 11
 - Python >= 3.7
-- A NVIDIA GPU (required only if you plan to train your own AI, better latest then Ampere framework to enable the 
-latest driver and cuda version.)
+- A NVIDIA GPU (required only if you plan to train your own AI, better latest the Ampere framework to enable the 
+latest driver and Cuda version.)
 
 ### If using Anaconda on Windows:
 We recommend installing the conda version of `pywin32`:
@@ -36,11 +34,11 @@ conda install pywin32
 
 The following instructions are for installing `tmrl` with support for the TrackMania 2023 video game.
 
-You will first need to install [TrackMania 2023](https://www.trackmania.com/?rub=home&lang=en), and also a small 
+You will first need to install [TrackMania 2023](https://www.trackmania.com/?rub=home&lang=en) and also a small 
 community-supported utility called [Openplanet](https://openplanet.dev/) for TrackMania (the Gymnasium environment 
 needs this utility to compute the reward).
 
-Make sure you have the `Visual C++ runtime` installed before you install the OpenPlanet. You can download it 
+Ensure you install the `Visual C++ runtime` before installing the OpenPlanet. You can download it 
 [here](https://aka.ms/vs/16/release/vc_redist.x64.exe) for 64bits versions of Windows.
 
 Then you can install `tmrl` framework easily by:
@@ -53,7 +51,7 @@ pip install tmrl
 
 ### Preparing
 
-Once you have installed the `tmrl` framework, the next step is to set up your own cuda environment.
+Once you have installed the `tmrl` framework, you should set up your own Cuda environment.
 
 You need to install the driver by checking the [official website](https://www.nvidia.com/Download/index.aspx?lang=en-us) 
 for the latest driver. Then, install [cuda toolkit](https://developer.nvidia.com/cuda-downloads) with its related
@@ -68,7 +66,7 @@ We tested our code with these hardware and software conditions:
 - cuDNN version: 8.7.0
 - Pytorch version: 2.1.0+cu118
 
-Our code should work with higher version. That conditions just for a reference.
+Our code should work with a higher version. Those conditions are just for reference.
 
 ### Install the requirements
 
@@ -100,14 +98,13 @@ pip install -r requirement.txt
 
 - Launch TrackMania 2023
 - In case the OpenPlanet menu is showing in the top part of the screen, hide it using the `f3` key
-- Launch the `tmrl-test` track. This can be done by selecting `create > map editor > edit a map > tmrl-test`, select map 
-and hitting the green flag. You should see a window like:
+- Launch the `tmrl-test` track. This can be done by selecting `create > map editor > edit a map > `tmrl-test,` selecting a map, and hitting the green flag. You should see a window like this:
 
 ![img5](img/image_provide.png)
 
-- Set the game in windowed mode. To do this, bring the cursor to the top of the screen and a drop-down menu will show. 
-Hit the windowed icon.
-- Bring the TrackMania window to the top-left corner of the screen. On Windows 10 / 11, it should automatically fit to 
+- Set the game in windowed mode. To do this, bring the cursor to the top of the screen, and a drop-down menu will show 
+Hit the window icon.
+- Bring the TrackMania window to the top-left corner of the screen. On Windows 10 / 11, it should automatically fit  
 a quarter of the screen (NB: the window will automatically snap to the top-left corner and get sized properly when you 
 start the training).
 - Hide the ghost by pressing the g key.
@@ -117,15 +114,15 @@ start the training).
 Once you start the game, you can launch a new terminal and cd to your code path. Then:
 
 `
-python SEAC_main.py
+python MOSEAC_main.py
 `
 
-The training process is based on the real time. So the performance is highly related on your PC's hardware products.
+The training process is based on real-time data. So, performance is highly related to your PC's hardware products.
 
-If you don't see the log outputs many "time out", which means your PC is good enough to process with current time 
+If you don't see the log outputs many "time out," which means your PC is good enough to process with the current time 
 parameters setting.
 
-If you see many "time out" warnings during this training, which means your CPU IPC or RAM is not good enough for this 
+If you see many "time out" warnings during this training, it means your CPU IPC or RAM is not good enough for this 
 training. Our control rate is default set within [5, 30] Hz. You can change them by:
 
 `
@@ -133,12 +130,12 @@ python3 SEAC_main.py --min_time=YOUR_VALUES --max_time=YOUR_VALUES`
 `
 To meet your hardware productions' performance.
 
-Our code tested on CPU: i5-13600K, RAM: DDR4 3200 MHz, GPU: Nvidia RTX 4070. If you keep the default parameters, you 
+Our code was tested on the CPU: i5-13600K, RAM: DDR4 3200 MHz, and GPU: Nvidia RTX 4070. If you keep the default parameters, you 
 probably see the agent is able to pass the first curve around 8 hours.
 
 ## More details and settings
 
-The Trackmania game also provides the lidar data, if you would like to do more, please refer to the repo 
+The Trackmania game also provides lidar data. If you would like to do more, please refer to the repo 
 [here](https://github.com/trackmania-rl/tmrl/blob/master/readme/get_started.md#load-the-tmrl-test-track-into-your-trackmania-game).
 
 ## Results
@@ -161,7 +158,7 @@ MIT
 ## Contact Information
 Author: Dong Wang (dong-1.wang@polymtl.ca), Giovanni Beltrame (giovanni.beltrame@polymtl.ca)
 
-And welcome to contact [MISTLAB](https://mistlab.ca) for more fun and practical robotics and AI related projects and 
+You are also welcome to contact [MISTLAB](https://mistlab.ca) for more fun and practical robotics and AI-related projects and 
 collaborations. :)
 
 ![image3](img/mistlogo.svg)
