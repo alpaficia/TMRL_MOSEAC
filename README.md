@@ -8,7 +8,7 @@ The tmrl framework can establish a communication link between game
 [Trackmania](https://www.trackmania.com/?rub=home&lang=en) to your local machine though 
 [OpenPlant](https://openplanet.dev/).
 
-![img4](img/Trackmania.png)
+![img5](img/Trackmania.png)
 
 The tmrl framework is a powerful Multi-threaded data transfer framework, allowing users to 
 train multi-threaded. However, Trackmania is not supposed to run multi-threaded. In other 
@@ -98,9 +98,9 @@ pip install -r requirement.txt
 
 - Launch TrackMania 2023
 - In case the OpenPlanet menu is showing in the top part of the screen, hide it using the `f3` key
-- Launch the `tmrl-test` track. This can be done by selecting `create > map editor > edit a map > `tmrl-test,` selecting a map, and hitting the green flag. You should see a window like this:
+- Launch the `tmrl-test` track. This can be done by selecting `create > map editor > edit a map > `tmrl-test,` selecting a map, and hitting the green flag.
 
-![img5](img/image_provide.png)
+
 
 - Set the game in windowed mode. To do this, bring the cursor to the top of the screen, and a drop-down menu will show 
 Hit the window icon.
@@ -140,17 +140,21 @@ The Trackmania game also provides lidar data. If you would like to do more, plea
 
 ## Results
 
-We compared our elastic method VS. fixed rate method (20 Hz) baseline.
+The training graphs are here:
 
-The chart of consumption of steps is here:
+![img1](img/tmrl_return.jpg)
 
-![img1](img/Energy_cost.png)
+![img2](img/tmrl_time.jpg)
 
-The chart of consumption of time is here:
+The graph of consumption of steps is here:
 
-![img2](img/Time_cost.png)
+![img3](img/Energy_cost_ral.jpg)
 
-The video is available [here](https://youtu.be/kEE0XEQueUM).
+The graph of consumption of time is here:
+
+![img4](img/Time_cost_ral.png)
+
+The video is available [here](https://youtu.be/VvuFN-KtGhU).
 
 ## License
 MIT
@@ -161,4 +165,4 @@ Author: Dong Wang (dong-1.wang@polymtl.ca), Giovanni Beltrame (giovanni.beltrame
 You are also welcome to contact [MISTLAB](https://mistlab.ca) for more fun and practical robotics and AI-related projects and 
 collaborations. :)
 
-![image3](img/mistlogo.svg)
+![image6](img/mistlogo.svg)
