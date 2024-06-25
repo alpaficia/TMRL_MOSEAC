@@ -152,7 +152,7 @@ The graph of consumption of steps is here:
 
 The graph of consumption of time is here:
 
-![img4](img/Time_cost_ral.png)
+![img4](img/Time_cost_ral.jpg)
 
 The video is available [here](https://youtu.be/VvuFN-KtGhU).
 
