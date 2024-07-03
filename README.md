@@ -73,7 +73,7 @@ Our code should work with a higher version. Those conditions are just for refere
 Once you have the development environment prepared, you can download our code though:
 
 `
-git clone https://github.com/alpaficia/TMRL_SEAC
+git clone https://github.com/alpaficia/TMRL_MOSEAC
 `
 
 Then copy the `config.json` file to the tmrl config folder. It should locate at `C:\user\your_name\TmrlData\config`.
@@ -126,7 +126,7 @@ If you see many "time out" warnings during this training, it means your CPU IPC 
 training. Our control rate is default set within [5, 30] Hz. You can change them by:
 
 `
-python3 SEAC_main.py --min_time=YOUR_VALUES --max_time=YOUR_VALUES`
+python3 MOSEAC_main.py --min_time=YOUR_VALUES --max_time=YOUR_VALUES`
 `
 To meet your hardware productions' performance.
 
