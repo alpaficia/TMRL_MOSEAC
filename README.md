@@ -2,7 +2,7 @@
 This project is for applying the idea of elastic time step with reinforcement learning under 
 [tmrl](https://github.com/trackmania-rl/tmrl) framework.
 
-This repo is for the paper [Reinforcement Learning with Elastic Time Step](https://arxiv.org/abs/2402.14961). About the 
+This repo is for the paper [Reinforcement Learning with Elastic Time Step](http://arxiv.org/abs/2402.14961). About the 
 
 The tmrl framework can establish a communication link between game 
 [Trackmania](https://www.trackmania.com/?rub=home&lang=en) to your local machine though 
